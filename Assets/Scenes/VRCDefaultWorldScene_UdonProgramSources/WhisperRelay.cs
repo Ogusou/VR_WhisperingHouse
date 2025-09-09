@@ -58,10 +58,24 @@ public class WhisperRelay : UdonSharpBehaviour
     [Range(0f, 1f)] public float iconAlphaOff = 0f;
     public float iconFadeInTime = 0.20f;
     public float iconFadeOutTime = 0.15f;
+// ★ 追加: リスナーダッキングの詳細パラメータ（話し手側と同等）
+[Header("Listener Ducking (Local)")]
+public AudioSource[] duckTargets;
+[Range(0f, 1f)] public float duckLevelListener = 0.35f;
+[Tooltip("ローパスを使う場合は ON")]
+public bool duckUseLowpass = true;
+[Range(100, 22000)] public int duckLowpassCutoff = 900;
+[Tooltip("ダックの入り時間(秒)")]
+public float duckFadeInTime = 0.15f;
+[Tooltip("ダックの戻し時間(秒)")]
+public float duckFadeOutTime = 0.20f;
 
-    [Header("Listener Ducking (Local)")]
-    public AudioSource[] duckTargets;
-    [Range(0f, 1f)] public float duckLevelListener = 0.35f;
+// ★ 追加: ダッキング内部状態
+private float[] _duckOrigVol;
+private AudioLowPassFilter[] _duckLPF;
+private int[] _duckOrigCutoff;
+private bool[] _duckOrigLPFEnabled;
+    private float _duckAlpha = 0f, _duckTarget = 0f;
 
     // ───────── Logging ─────────
     [Header("Logging")]
@@ -71,9 +85,7 @@ public class WhisperRelay : UdonSharpBehaviour
     public bool loopbackInSolo = true;
     public string logTag = "[Whisper]";
 
-    // Duck / Visual 内部
-    private float[] _duckOrigVol;
-
+ 
     // 状態
     private VRCPlayerApi _local;
     private bool _listenerActive;
@@ -99,12 +111,30 @@ public class WhisperRelay : UdonSharpBehaviour
     {
         _local = Networking.LocalPlayer;
 
-        // Duck の元音量
+            // ★ 変更: Duck 初期化を拡張（LPFも握る）
         if (duckTargets != null && duckTargets.Length > 0)
         {
-            _duckOrigVol = new float[duckTargets.Length];
-            for (int i = 0; i < duckTargets.Length; i++)
-                _duckOrigVol[i] = (duckTargets[i] != null) ? duckTargets[i].volume : 1f;
+            int n = duckTargets.Length;
+            _duckOrigVol = new float[n];
+            _duckLPF = new AudioLowPassFilter[n];
+            _duckOrigCutoff = new int[n];
+            _duckOrigLPFEnabled = new bool[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                var a = duckTargets[i];
+                if (a == null) continue;
+
+                _duckOrigVol[i] = a.volume;
+
+                var lpf = a.GetComponent<AudioLowPassFilter>();
+                _duckLPF[i] = lpf;
+                if (lpf != null)
+                {
+                    _duckOrigLPFEnabled[i] = lpf.enabled;
+                    _duckOrigCutoff[i] = Mathf.RoundToInt(lpf.cutoffFrequency);
+                }
+            }
         }
 
         // 画像の初期アルファ＝0（非表示）
@@ -261,19 +291,23 @@ public class WhisperRelay : UdonSharpBehaviour
 
     void Update()
     {
-        // ヘッドロックの追従（常時でOK）
+            // ヘッドロックの追従
         _TickVignetteTransform();
         _TickIconTransform();
         _TickVignetteFade();
         _TickIconFade();
 
-        // デバッグでラッチON中は消さない（タイムアウト無効化）
+        // ★ 追加: 毎フレーム ダックの補間を回す
+        _TickDuck();
+
+        // デバッグ・ラッチ時は消灯ロジックをスキップ
         if (_debugReplyLatched)
         {
             _listenerActive = true;
-            _aliveUntil = Time.time + 3600f; // ずっと先まで延命
-            return;                          // 他のOFF判定をスキップ
+            _aliveUntil = Time.time + 3600f;
+            return;
         }
+
         if (!_listenerActive) return;
 
 
@@ -337,9 +371,9 @@ public class WhisperRelay : UdonSharpBehaviour
         else { rightEar = false; return dL < thr; }
     }
 
-    private void _SetListenerVisual(bool on, bool earRight /*unused*/)
+        private void _SetListenerVisual(bool on, bool earRight /*unused*/)
     {
-        // ── Vignette（色は常に listenerVignetteTint、アルファだけフェード）
+        // Vignette 色・アルファ目標
         if (vignetteImage != null)
         {
             var c = vignetteImage.color;
@@ -348,23 +382,54 @@ public class WhisperRelay : UdonSharpBehaviour
         }
         _vigTarget = on ? vignetteAlphaOn : vignetteAlphaOff;
 
-        // ── Icon（アルファのみ切替）
+        // アイコン目標
         _iconTarget = on ? iconAlphaOn : iconAlphaOff;
 
-        // ── Ducking
-        if (duckTargets != null && duckTargets.Length > 0)
-        {
-            for (int i = 0; i < duckTargets.Length; i++)
-            {
-                var a = duckTargets[i];
-                if (a == null) continue;
-                float baseVol = (_duckOrigVol != null && i < _duckOrigVol.Length) ? _duckOrigVol[i] : a.volume;
-                a.volume = on ? (baseVol * duckLevelListener) : baseVol;
-            }
-        }
+        // ★ 変更: ダックは即時セットではなく「目標値」にする（フェードで滑らかに）
+        _duckTarget = on ? 1f : 0f;
 
         L($"visual {(on ? "ON" : "OFF")} (head-locked, ear offset unused)");
     }
+
+    // ★ 追加: リスナー側のダック処理（話し手の WhisperManager._TickDuck を簡約移植）
+    private void _TickDuck()
+    {
+        if (duckTargets == null || duckTargets.Length == 0) return;
+
+        float dur = (_duckTarget > _duckAlpha) ? Mathf.Max(0.01f, duckFadeInTime)
+                                            : Mathf.Max(0.01f, duckFadeOutTime);
+        float step = Time.deltaTime / dur;
+        _duckAlpha = Mathf.MoveTowards(_duckAlpha, _duckTarget, step);
+
+        for (int i = 0; i < duckTargets.Length; i++)
+        {
+            var a = duckTargets[i];
+            if (a == null) continue;
+
+            // 元音量 → 元×duckLevelListener へ補間
+            float v0 = (_duckOrigVol != null && i < _duckOrigVol.Length) ? _duckOrigVol[i] : a.volume;
+            a.volume = Mathf.Lerp(v0, v0 * duckLevelListener, _duckAlpha);
+
+            var lpf = (_duckLPF != null && i < _duckLPF.Length) ? _duckLPF[i] : null;
+            if (lpf != null)
+            {
+                if (duckUseLowpass)
+                {
+                    lpf.enabled = true;
+                    float c0 = (_duckOrigCutoff != null && i < _duckOrigCutoff.Length && _duckOrigCutoff[i] > 0)
+                            ? _duckOrigCutoff[i] : 22000f;
+                    lpf.cutoffFrequency = Mathf.Lerp(c0, duckLowpassCutoff, _duckAlpha);
+                }
+                else
+                {
+                    // ローパスを使わないなら、元の有効状態に戻す
+                    if (_duckOrigLPFEnabled != null && i < _duckOrigLPFEnabled.Length)
+                        lpf.enabled = _duckOrigLPFEnabled[i];
+                }
+            }
+        }
+    }
+
 
     // ── Vignette フェード
     private void _TickVignetteFade()

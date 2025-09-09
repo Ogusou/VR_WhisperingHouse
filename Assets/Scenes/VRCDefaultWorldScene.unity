@@ -2563,10 +2563,10 @@ MonoBehaviour:
   listenerStartDistance: 0.4
   listenerTimeout: 30
   listenerEndDistance: 2
-  whisperPingInterval: 0.5
+  whisperPingInterval: 0.3
   enterDistance: 0.4
   exitDistance: 0.5
-  confirmCount: 3
+  confirmCount: 2
   pingTimeoutSec: 1.5
   manager: {fileID: 1247468959}
   forwardToManager: 1
@@ -2576,8 +2576,8 @@ MonoBehaviour:
   vignetteAlphaOn: 0.84
   vignetteAlphaOff: 0
   vignetteDistance: 0.085
-  vignetteSizeMeters: {x: 0.26, y: 0.21}
-  vignetteFadeInTime: 0.2
+  vignetteSizeMeters: {x: 0.27, y: 0.21}
+  vignetteFadeInTime: 0.15
   vignetteFadeOutTime: 0.15
   whisperedIconImage: {fileID: 261975986}
   whisperedIconRect: {fileID: 261975985}
@@ -2585,11 +2585,15 @@ MonoBehaviour:
   iconSizeMeters: {x: 0.035, y: 0.035}
   iconAlphaOn: 1
   iconAlphaOff: 0
-  iconFadeInTime: 0.2
+  iconFadeInTime: 0.15
   iconFadeOutTime: 0.15
   duckTargets:
   - {fileID: 452354429}
   duckLevelListener: 0.21
+  duckUseLowpass: 1
+  duckLowpassCutoff: 900
+  duckFadeInTime: 0.15
+  duckFadeOutTime: 0.2
   logVerbose: 1
   logOwnerTrace: 1
   loopbackInSolo: 1
@@ -3297,6 +3301,7 @@ GameObject:
   - component: {fileID: 1247468959}
   - component: {fileID: 1247468958}
   - component: {fileID: 1247468961}
+  - component: {fileID: 1247468962}
   m_Layer: 0
   m_Name: WhisperManager
   m_TagString: Untagged
@@ -3560,6 +3565,24 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &1247468962
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1247468957}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -617992517, guid: 661092b4961be7145bfbe56e1e62337b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Gain: 10
+  Far: 80
+  Near: 0
+  VolumetricRadius: 0
+  EnableSpatialization: 0
+  UseAudioSourceVolumeCurve: 0
 --- !u!1001 &1254031345
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5717,14 +5740,14 @@ MonoBehaviour:
   useAssignedLayers: 0
   DynamicPrefabs: []
   DynamicMaterials:
+  - {fileID: 2100000, guid: 5f372724002f5a64ab7845634c1c2e2b, type: 2}
+  - {fileID: 2100000, guid: 9c46c2ebfd2302c4694e1c46fef93476, type: 2}
+  - {fileID: 2100000, guid: a6e120f279a37054f967f0a40b80fd9c, type: 2}
+  - {fileID: 2100000, guid: 2702fe19590be1149b63a613ec8d84ab, type: 2}
   - {fileID: 2100000, guid: 5a56356410718164f92d61c4fbbd53ff, type: 2}
   - {fileID: 2100000, guid: 87b23b5dd81b19f4fb9534b14be7261e, type: 2}
-  - {fileID: 2100000, guid: a6e120f279a37054f967f0a40b80fd9c, type: 2}
-  - {fileID: 2100000, guid: 9c46c2ebfd2302c4694e1c46fef93476, type: 2}
-  - {fileID: 2100000, guid: 2702fe19590be1149b63a613ec8d84ab, type: 2}
   - {fileID: 2100000, guid: 5e794a8c000cdba4f88783a876593992, type: 2}
   - {fileID: 2100000, guid: f199ba452372bc14ab93025691e81513, type: 2}
-  - {fileID: 2100000, guid: 5f372724002f5a64ab7845634c1c2e2b, type: 2}
   - {fileID: 2100000, guid: 36d3cb3fb03bc78478d72fcf0c80d1b1, type: 2}
   - {fileID: 2100000, guid: 4853498aaf373ad478bf5c2cfb0ade21, type: 2}
   - {fileID: 2100000, guid: 8600efedd2db54843999bb2feb4d7081, type: 2}
