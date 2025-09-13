@@ -54,9 +54,9 @@ public class WhisperManager : UdonSharpBehaviour
     [Tooltip("フォールバック dy の符号補正（+1/-1）")]
     public float pseudoDySign = 1f;
 
-    [Header("Whisper 音声設定 (m)")]
-    public float whisperFar = 0.25f;
-    public float whisperNear = 0f;
+    // [Header("Whisper 音声設定 (m)")]
+    // public float whisperFar = 0.25f;
+    // public float whisperNear = 0f;
 
     [Header("通常音声設定 (m)")]
     public float normalFar = 25f;
@@ -220,6 +220,23 @@ public class WhisperManager : UdonSharpBehaviour
     public int confirmCount = 3;
     [Tooltip("最後のPingからのタイムアウト秒数（超えたら停止扱い）")]
     public float pingTimeoutSec = 1.5f;
+
+        // 追加（インスペクタで GatePool を割り当て）
+   [Header("Voice Gate")]
+    public WhisperGatePool gatePool;
+    private WhisperVoiceGate _myGate;
+    private int _lastTargetPid = -1;
+    private float _nextGateUpdateTime = 0f;
+
+
+    // 受け手推定のために保持
+    private VRCPlayerApi _FindNearestListener()
+    {
+        // 右手/左手どちらでも近い方でOK（実装簡略）
+        var a = FindNearestAny(true);
+        if (a != null) return a;
+        return FindNearestAny(false);
+    }
 
     private const string LOG = "[WhisperCheck]";
     private bool isReceiving;
@@ -424,6 +441,22 @@ public class WhisperManager : UdonSharpBehaviour
         _TickVignetteTransform();
         _TickIconTransform();
         _TickDuck();
+
+        // --- 囁き中はターゲットを0.25秒おきに更新（相手が入れ替わるケース対策） ---
+        if (isWhispering && Time.time >= _nextGateUpdateTime)
+        {
+            _nextGateUpdateTime = Time.time + 0.25f;
+
+            int t = -1;
+            var otherNow = _FindNearestListener();
+            if (otherNow != null) t = otherNow.playerId;
+
+            if (t != _lastTargetPid)
+            {
+                if (_myGate != null) _myGate.OwnerUpdateTarget(t);
+                _lastTargetPid = t;
+            }
+        }   
 
         // Pingが途切れたら停止扱い（受信安定性表示）
         if (isReceiving && (Time.time - lastPingTime) > pingTimeoutSec)
@@ -660,9 +693,7 @@ public class WhisperManager : UdonSharpBehaviour
     // ───────────────── 音声制御 & UI ─────────────────
     private void EnableWhisper()
     {
-        localPlayer.SetVoiceDistanceNear(whisperNear);
-        localPlayer.SetVoiceDistanceFar(whisperFar);
-        localPlayer.SetVoiceLowpass(false);
+     
         isWhispering = true;
         UpdateStateLabel(true);
 
@@ -684,15 +715,24 @@ public class WhisperManager : UdonSharpBehaviour
         // ダッキング（話し手）
         _duckTarget = 1f;
 
-        // ネットワーク配信（WhisperReply に委譲）
+            // --- Gate 起動 ---
+        if (gatePool != null && _myGate == null)
+            _myGate = gatePool.GetGateForLocal();
+
+        int target = -1;
+        var other = _FindNearestListener();   // 既存の近接推定を使用
+        if (other != null) target = other.playerId;
+
+        if (_myGate != null) _myGate.OwnerStart(target);
+        _lastTargetPid = target;
+
+        // ネットワーク配信（既存）
         if (reply != null) reply.SendCustomEvent("TalkerEnter");
     }
 
     private void DisableWhisper()
     {
-        localPlayer.SetVoiceDistanceNear(normalNear);
-        localPlayer.SetVoiceDistanceFar(normalFar);
-        localPlayer.SetVoiceLowpass(false);
+        
         isWhispering = false;
         UpdateStateLabel(false);
 
@@ -703,6 +743,10 @@ public class WhisperManager : UdonSharpBehaviour
         _iconTarget = iconExitAlpha;
         _ledTarget = 0f;
         _duckTarget = 0f;
+        
+        // --- Gate 停止 ---
+        if (_myGate != null) _myGate.OwnerStop();
+        _lastTargetPid = -1;
 
         // ネットワーク配信（WhisperReply に委譲）
         if (reply != null) reply.SendCustomEvent("TalkerExit");
