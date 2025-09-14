@@ -556,19 +556,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 194821704}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0
+  whisperFar: 25
+  whisperGain: 15
+  reapplyInterval: 0.5
 --- !u!114 &194821704
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -588,7 +589,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -650,19 +651,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 210790621}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 1393058986}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 1
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0
+  whisperFar: 25
+  whisperGain: 15
+  reapplyInterval: 0.5
 --- !u!114 &210790621
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -682,7 +684,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -967,7 +969,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -372.52, y: -177.83}
+  m_AnchoredPosition: {x: -363.77, y: -172.91}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &259959044
@@ -1636,19 +1638,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 378312642}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0.2
+  whisperFar: 0.3
+  whisperGain: 20
+  reapplyInterval: 0.5
 --- !u!114 &378312642
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -1668,7 +1671,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -2352,8 +2355,10 @@ MonoBehaviour:
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 476381379}
   pool: {fileID: 1630162071}
-  label: {fileID: 678878690}
+  labelTMP: {fileID: 678878690}
+  labelUGUI: {fileID: 0}
   refreshInterval: 0.25
+  showPlayerIds: 1
 --- !u!4 &476381381
 Transform:
   m_ObjectHideFlags: 0
@@ -2711,8 +2716,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -366.61, y: -174.17}
-  m_SizeDelta: {x: 200, y: 50}
+  m_AnchoredPosition: {x: -373.1, y: -178.18}
+  m_SizeDelta: {x: 322.1108, y: 277.5728}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &678878690
 MonoBehaviour:
@@ -3236,6 +3241,7 @@ MonoBehaviour:
   logOwnerTrace: 1
   loopbackInSolo: 1
   logTag: '[Whisper]'
+  gatePool: {fileID: 1630162071}
 --- !u!4 &820702407
 Transform:
   m_ObjectHideFlags: 0
@@ -3544,19 +3550,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 937566143}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0.2
+  whisperFar: 0.3
+  whisperGain: 20
+  reapplyInterval: 0.5
 --- !u!114 &937566143
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -3576,7 +3583,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -6322,19 +6329,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 1133052294}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0.2
+  whisperFar: 0.3
+  whisperGain: 20
+  reapplyInterval: 0.5
 --- !u!114 &1133052294
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -6354,7 +6362,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -6416,19 +6424,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 1183170973}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0.2
+  whisperFar: 0.3
+  whisperGain: 20
+  reapplyInterval: 0.5
 --- !u!114 &1183170973
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -6448,7 +6457,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -6633,6 +6642,11 @@ MonoBehaviour:
   confirmCount: 3
   pingTimeoutSec: 1.5
   gatePool: {fileID: 1630162071}
+  targetCandidateMaxDist: 0.6
+  targetPreferCloserFactor: 0.85
+  targetSwitchConfirm: 3
+  targetStickMinSeconds: 0.5
+  talkerExitGraceSec: 0.35
 --- !u!4 &1247468960
 Transform:
   m_ObjectHideFlags: 0
@@ -7326,6 +7340,142 @@ ReflectionProbe:
   m_UseOcclusionCulling: 1
   m_Importance: 1
   m_CustomBakedTexture: {fileID: 0}
+--- !u!1 &1393058985
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1393058988}
+  - component: {fileID: 1393058987}
+  - component: {fileID: 1393058986}
+  m_Layer: 5
+  m_Name: Debug (2)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1393058986
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1393058985}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: 'Debug
+
+'
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4294575793
+  m_fontColor: {r: 0.69226956, g: 0.023529401, b: 0.98039216, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: -1183493901
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 8
+  m_fontSizeBase: 8
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 18
+  m_fontSizeMax: 72
+  m_fontStyle: 1
+  m_HorizontalAlignment: 1
+  m_VerticalAlignment: 256
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_enableWordWrapping: 1
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 1
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 1
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 97.704414, w: -24.109898}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!222 &1393058987
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1393058985}
+  m_CullTransparentMesh: 1
+--- !u!224 &1393058988
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1393058985}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 5.29}
+  m_LocalScale: {x: 0.048852626, y: 0.048852626, z: 0.048852626}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5505696862542333067}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: -363.77, y: -180.92}
+  m_SizeDelta: {x: 200, y: 50}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1416828813
 GameObject:
   m_ObjectHideFlags: 0
@@ -7471,19 +7621,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 1433029684}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0.2
+  whisperFar: 0.3
+  whisperGain: 20
+  reapplyInterval: 0.5
 --- !u!114 &1433029684
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -7503,7 +7654,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -7565,19 +7716,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 1467562235}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 256734298}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 1
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0
+  whisperFar: 25
+  whisperGain: 15
+  reapplyInterval: 0.5
 --- !u!114 &1467562235
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -7597,7 +7749,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -7659,19 +7811,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 1478858564}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0.2
+  whisperFar: 0.3
+  whisperGain: 20
+  reapplyInterval: 0.5
 --- !u!114 &1478858564
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -7691,7 +7844,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -8044,19 +8197,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 1602458833}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0.2
+  whisperFar: 0.3
+  whisperGain: 20
+  reapplyInterval: 0.5
 --- !u!114 &1602458833
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -8076,7 +8230,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -8135,7 +8289,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 67f9a095d03051e43b7cd9f542e69265,
     type: 2}
   programSource: {fileID: 11400000, guid: 099a02abf18b5384da7a988972222308, type: 2}
@@ -8170,17 +8324,6 @@ MonoBehaviour:
   - {fileID: 210790620}
   - {fileID: 194821703}
   - {fileID: 2036073531}
-  - {fileID: 1918021334}
-  - {fileID: 1433029683}
-  - {fileID: 378312641}
-  - {fileID: 1133052293}
-  - {fileID: 937566142}
-  - {fileID: 1602458832}
-  - {fileID: 1768392428}
-  - {fileID: 1478858563}
-  - {fileID: 1183170972}
-  - {fileID: 1970824518}
-  - {fileID: 2067355989}
 --- !u!4 &1630162072
 Transform:
   m_ObjectHideFlags: 0
@@ -8410,19 +8553,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 1768392429}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0.2
+  whisperFar: 0.3
+  whisperGain: 20
+  reapplyInterval: 0.5
 --- !u!114 &1768392429
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -8442,7 +8586,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -8682,19 +8826,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 1800620956}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 1852661361}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 1
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0
+  whisperFar: 25
+  whisperGain: 15
+  reapplyInterval: 0.5
 --- !u!114 &1800620956
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -8714,7 +8859,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -8774,6 +8919,142 @@ Transform:
   - {fileID: 1343455036}
   m_Father: {fileID: 403741765}
   m_LocalEulerAnglesHint: {x: 0, y: -179.039, z: 0}
+--- !u!1 &1852661359
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1852661360}
+  - component: {fileID: 1852661362}
+  - component: {fileID: 1852661361}
+  m_Layer: 5
+  m_Name: Debug (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1852661360
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1852661359}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 5.29}
+  m_LocalScale: {x: 0.048852626, y: 0.048852626, z: 0.048852626}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5505696862542333067}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: -363.77, y: -176.72}
+  m_SizeDelta: {x: 200, y: 50}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1852661361
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1852661359}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: 'Debug
+
+'
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4294575793
+  m_fontColor: {r: 0.69226956, g: 0.023529401, b: 0.98039216, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: -1183493901
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 8
+  m_fontSizeBase: 8
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 18
+  m_fontSizeMax: 72
+  m_fontStyle: 1
+  m_HorizontalAlignment: 1
+  m_VerticalAlignment: 256
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_enableWordWrapping: 1
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 1
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 1
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 97.704414, w: -24.109898}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!222 &1852661362
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1852661359}
+  m_CullTransparentMesh: 1
 --- !u!1 &1918021333
 GameObject:
   m_ObjectHideFlags: 0
@@ -8814,19 +9095,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 1918021335}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0.2
+  whisperFar: 0.3
+  whisperGain: 20
+  reapplyInterval: 0.5
 --- !u!114 &1918021335
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -8846,7 +9128,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -9052,19 +9334,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 1970824519}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0.2
+  whisperFar: 0.3
+  whisperGain: 20
+  reapplyInterval: 0.5
 --- !u!114 &1970824519
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -9084,7 +9367,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -9300,19 +9583,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 2036073532}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0
+  whisperFar: 25
+  whisperGain: 15
+  reapplyInterval: 0.5
 --- !u!114 &2036073532
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -9332,7 +9616,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -9394,19 +9678,20 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 2067355990}
-  whisperNear: 0
-  whisperFar: 0.3
-  normalNear: 0
-  normalFar: 25
-  muteAllWhenNoTarget: 1
-  reapplyEveryFrame: 1
-  reapplyInterval: 0.25
-  debugLabelTMP: {fileID: 256734298}
-  debugLabelUGUI: {fileID: 0}
-  debugShowEveryFrame: 0
-  debugUpdateInterval: 0.25
+  assignedPid: -1
   targetPid: -1
   gateOn: 0
+  assignedIndex: -1
+  debugLabelTMP: {fileID: 0}
+  debugLabelUGUI: {fileID: 0}
+  debugShowEveryFrame: 0
+  normalNear: 0
+  normalFar: 25
+  normalGain: 15
+  whisperNear: 0.2
+  whisperFar: 0.3
+  whisperGain: 20
+  reapplyInterval: 0.5
 --- !u!114 &2067355990
 MonoBehaviour:
   m_ObjectHideFlags: 2
@@ -9426,7 +9711,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 23b2329967380684e83cb1012b86081a,
     type: 2}
   programSource: {fileID: 11400000, guid: ea61ed0fcfb231a4a9062ab5b7b18dd1, type: 2}
@@ -9917,6 +10202,14 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8051828523054506323, guid: bf80327b089422444b6c8af3dcc651e4,
         type: 3}
       insertIndex: 7
+      addedObject: {fileID: 1852661360}
+    - targetCorrespondingSourceObject: {fileID: 8051828523054506323, guid: bf80327b089422444b6c8af3dcc651e4,
+        type: 3}
+      insertIndex: 8
+      addedObject: {fileID: 1393058988}
+    - targetCorrespondingSourceObject: {fileID: 8051828523054506323, guid: bf80327b089422444b6c8af3dcc651e4,
+        type: 3}
+      insertIndex: 9
       addedObject: {fileID: 678878689}
     - targetCorrespondingSourceObject: {fileID: 8051828523054506323, guid: bf80327b089422444b6c8af3dcc651e4,
         type: 3}

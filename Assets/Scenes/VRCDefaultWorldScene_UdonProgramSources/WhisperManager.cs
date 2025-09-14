@@ -14,8 +14,11 @@ using UnityEngine.UI;
 ///     ↳ 必要なら inspector で `reply` に WhisperReply を割り当ててください。
 ///  - 受信側安定性ログ（ReplyLabel）も受け取り表示可能（OnWhisperEnter/Ping/Exit）
 /// </summary>
+
+
 public class WhisperManager : UdonSharpBehaviour
 {
+    
     // ───────── 依存（ネットワーク配信は別コンポーネントへ） ─────────
     [Header("Relay (optional)")]
     [Tooltip("WhisperReply を指定すると、囁き開始/継続/終了タイミングで TalkerEnter/TalkerTick/TalkerExit を呼びます")]
@@ -108,7 +111,7 @@ public class WhisperManager : UdonSharpBehaviour
     [Range(0f, 1f)] public float vignetteExitAlpha = 0.0f;
     public float vignetteFadeInTime = 0.20f;
     public float vignetteFadeOutTime = 0.15f;
-    public Color talkerVignetteTint   = new Color(1f, 0.55f, 0.55f, 1f); // 話し手色
+    public Color talkerVignetteTint = new Color(1f, 0.55f, 0.55f, 1f); // 話し手色
 
     // ───────── Whisper FX（見た目：手首LED）─────────
     [Header("Whisper FX - 手首LED（エミッシブ点灯）")]
@@ -221,12 +224,39 @@ public class WhisperManager : UdonSharpBehaviour
     [Tooltip("最後のPingからのタイムアウト秒数（超えたら停止扱い）")]
     public float pingTimeoutSec = 1.5f;
 
-        // 追加（インスペクタで GatePool を割り当て）
-   [Header("Voice Gate")]
+    // 追加（インスペクタで GatePool を割り当て）
+    [Header("Voice Gate")]
     public WhisperGatePool gatePool;
     private WhisperVoiceGate _myGate;
     private int _lastTargetPid = -1;
     private float _nextGateUpdateTime = 0f;
+
+
+    // ===== Target selection tuning =====
+    [Header("Target Selection")]
+    [Tooltip("候補として認める最大距離(m)（otherEarThreshold と同程度〜少し広め推奨）")]
+    public float targetCandidateMaxDist = 0.60f;
+    [Tooltip("新候補が現在ターゲットよりどれだけ近ければ即切替するか（例0.85=15%近い）")]
+    [Range(0.5f, 1.0f)] public float targetPreferCloserFactor = 0.85f;
+    [Tooltip("新候補が連続でこの回数 合格したら切替（揺れ対策）")]
+    public int targetSwitchConfirm = 3;
+    [Tooltip("最後の切替からこの秒数は粘る（スティッキー）")]
+    public float targetStickMinSeconds = 0.5f;
+
+    private int _switchCounter = 0;
+    private float _lastSwitchTime = -999f;
+
+    // 追加フィールド
+    [Header("Whisper Talker Debounce")]
+    [Tooltip("囁きOFFと判定されても、この秒数までは継続（一瞬の途切れを無視）")]
+    public float talkerExitGraceSec = 0.35f;
+
+    [Tooltip("ターゲット切替は、この回数連続で同じ候補になったら確定")]
+
+    private float _talkerHoldUntil = 0f;
+    private int _switchCount = 0;
+    private int _candidatePid = -1;
+
 
 
     // 受け手推定のために保持
@@ -334,7 +364,7 @@ public class WhisperManager : UdonSharpBehaviour
     }
 
     void Update()
-    {
+     {
         if (localPlayer == null) return;
 
         // ───── プロファイル表示（常時更新） ─────
@@ -371,7 +401,7 @@ public class WhisperManager : UdonSharpBehaviour
 
         // 手の選択
         bool evalRight = (activeHandsMode != 1);
-        bool evalLeft = (activeHandsMode != 0);
+        bool evalLeft  = (activeHandsMode != 0);
 
         // グリップで手選択（両手モードのみ）
         if (enableGripSwitch && activeHandsMode == 2 && localPlayer.IsUserInVR())
@@ -388,7 +418,7 @@ public class WhisperManager : UdonSharpBehaviour
             else if (lDown && !rDown) _selectedHand = 1;
             else if (rDown && lDown) _selectedHand = 0;
 
-            if (_selectedHand == 0) { evalRight = true; evalLeft = false; }
+            if (_selectedHand == 0) { evalRight = true;  evalLeft = false; }
             else if (_selectedHand == 1) { evalRight = false; evalLeft = true; }
             else { evalRight = false; evalLeft = false; }
         }
@@ -398,7 +428,7 @@ public class WhisperManager : UdonSharpBehaviour
         float rDot = 0f, lDot = 0f, rDy = 0f, lDy = 0f;
 
         bool loosened = useExitLoosenedThresholds && isWhispering;
-        if (evalRight) rOK = EvaluateHand(true, loosened, out rDot, out rDy, out rOrient);
+        if (evalRight) rOK = EvaluateHand(true,  loosened, out rDot, out rDy, out rOrient);
         if (evalLeft)  lOK = EvaluateHand(false, loosened, out lDot, out lDy, out lOrient);
 
         bool anyWhisper = rOK || lOK;
@@ -406,16 +436,16 @@ public class WhisperManager : UdonSharpBehaviour
         // 表示（代表手）
         bool useRight = rOK ? true : (lOK ? false : (evalRight && !evalLeft));
         float showDot = useRight ? rDot : lDot;
-        float showDy = useRight ? rDy : lDy;
+        float showDy  = useRight ? rDy  : lDy;
         bool showOrientOK = useRight ? rOrient : lOrient;
 
         if (orientLabel != null)
             orientLabel.text = "掌向き" + (loosened ? "(Exit)" : "(Enter)") + ": " + (showOrientOK ? "OK" : "NG") +
-                               "  dot=" + showDot.ToString("F2") +
-                               "  dy=" + showDy.ToString("F2") + "m" +
-                               (enableModeDetection
-                                 ? $"  (dot≥{coverDotSignedThresh:F2}, dyNorm≥{dyNormThresh:F2})"
-                                 : $"  (dot {fixedDotMin:F2}–{fixedDotMax:F2}, dy≥{fixedDyRawMin:F2})");
+                            "  dot=" + showDot.ToString("F2") +
+                            "  dy=" + showDy.ToString("F2") + "m" +
+                            (enableModeDetection
+                                ? $"  (dot≥{coverDotSignedThresh:F2}, dyNorm≥{dyNormThresh:F2})"
+                                : $"  (dot {fixedDotMin:F2}–{fixedDotMax:F2}, dy≥{fixedDyRawMin:F2})");
 
         // 囁き状態の切り替え
         if (anyWhisper && !isWhispering)
@@ -442,21 +472,77 @@ public class WhisperManager : UdonSharpBehaviour
         _TickIconTransform();
         _TickDuck();
 
-        // --- 囁き中はターゲットを0.25秒おきに更新（相手が入れ替わるケース対策） ---
+        // ───── ここから Gate ターゲットの“粘り + 確定切替”ロジック ─────
         if (isWhispering && Time.time >= _nextGateUpdateTime)
         {
             _nextGateUpdateTime = Time.time + 0.25f;
 
-            int t = -1;
-            var otherNow = _FindNearestListener();
-            if (otherNow != null) t = otherNow.playerId;
+            // ★ 追記：Gate を遅延取得（入室直後などで null の場合に備える）
+            if (_myGate == null && gatePool != null)
+                _myGate = gatePool.GetGateForLocal();
 
-            if (t != _lastTargetPid)
+            // 代表手の優先度（検出状況に応じて手を優先）
+            bool preferRight = (activeHandsMode != 1) && (rOK || (useRight && evalRight));
+            bool preferLeft  = (activeHandsMode != 0) && (lOK || (!useRight && evalLeft));
+
+            // ★ 追記：今しがた Gate を掴んだ/消えていた場合にブートストラップ
+            if (_myGate != null && !_myGate.gateOn)
             {
-                if (_myGate != null) _myGate.OwnerUpdateTarget(t);
-                _lastTargetPid = t;
+                int bootTarget = (_lastTargetPid >= 0)
+                    ? _lastTargetPid
+                    : _SelectTargetSmart(preferRight, preferLeft, /*fallbackNearest:*/ true);
+
+                _myGate.OwnerStart(bootTarget);
+                _lastTargetPid  = bootTarget;
+                _lastSwitchTime = Time.time;
+                _switchCounter  = 0;
             }
-        }   
+
+            // 現在のジェスチャーに基づくスマート候補を取得（フォールバックなし）
+            int newCandidate = _SelectTargetSmart(preferRight, preferLeft, /*fallbackNearest:*/ false);
+
+            if (_IsTargetStillValid(_lastTargetPid))
+            {
+                if (newCandidate >= 0 && newCandidate != _lastTargetPid)
+                {
+                    // 有意に近い or 規定回数連続で検出 → 切替確定
+                    if (_IsSignificantlyCloser(newCandidate, _lastTargetPid) || _switchCounter >= targetSwitchConfirm)
+                    {
+                        if (_myGate != null) _myGate.OwnerUpdateTarget(newCandidate);
+                        _lastTargetPid  = newCandidate;
+                        _lastSwitchTime = Time.time;
+                        _switchCounter  = 0;
+                    }
+                    else
+                    {
+                        _switchCounter++; // まだ粘る
+                    }
+                }
+                else
+                {
+                    _switchCounter = 0; // 維持
+                    // まれな競合対策として再適用（Owner が自分である限り無害）
+                    if (_myGate != null && _lastTargetPid >= 0) _myGate.OwnerUpdateTarget(_lastTargetPid);
+                }
+            }
+            else
+            {
+                // 既存ターゲットが無効化された（遠ざかった/離脱など）
+                if (newCandidate >= 0 && newCandidate != _lastTargetPid)
+                {
+                    if (_myGate != null) _myGate.OwnerUpdateTarget(newCandidate);
+                    _lastTargetPid  = newCandidate;
+                    _lastSwitchTime = Time.time;
+                    _switchCounter  = 0;
+                }
+                else
+                {
+                    // 候補が無くても維持（-1 にはしない）
+                    // まれな競合対策として再適用
+                    if (_myGate != null && _lastTargetPid >= 0) _myGate.OwnerUpdateTarget(_lastTargetPid);
+                }
+            }
+        }
 
         // Pingが途切れたら停止扱い（受信安定性表示）
         if (isReceiving && (Time.time - lastPingTime) > pingTimeoutSec)
@@ -467,6 +553,7 @@ public class WhisperManager : UdonSharpBehaviour
             UpdateLabel("受信: ❌ (timeout)");
         }
     }
+
 
     // ───────────────── 判定ひとまとめ ─────────────────
     private bool EvaluateHand(bool isRight, bool loosened, out float dotSigned, out float dyRaw, out bool orientPass)
@@ -599,9 +686,9 @@ public class WhisperManager : UdonSharpBehaviour
     private Vector3 ComputePalmNormal(bool isRight)
     {
         Vector3 wrist = localPlayer.GetBonePosition(isRight ? HumanBodyBones.RightHand : HumanBodyBones.LeftHand);
-        Vector3 idxP  = localPlayer.GetBonePosition(isRight ? HumanBodyBones.RightIndexProximal  : HumanBodyBones.LeftIndexProximal);
-        Vector3 litP  = localPlayer.GetBonePosition(isRight ? HumanBodyBones.RightLittleProximal : HumanBodyBones.LeftLittleProximal);
-        Vector3 midP  = localPlayer.GetBonePosition(isRight ? HumanBodyBones.RightMiddleProximal : HumanBodyBones.LeftMiddleProximal);
+        Vector3 idxP = localPlayer.GetBonePosition(isRight ? HumanBodyBones.RightIndexProximal : HumanBodyBones.LeftIndexProximal);
+        Vector3 litP = localPlayer.GetBonePosition(isRight ? HumanBodyBones.RightLittleProximal : HumanBodyBones.LeftLittleProximal);
+        Vector3 midP = localPlayer.GetBonePosition(isRight ? HumanBodyBones.RightMiddleProximal : HumanBodyBones.LeftMiddleProximal);
 
         if (wrist == Vector3.zero || idxP == Vector3.zero || litP == Vector3.zero || midP == Vector3.zero)
             return ComputePalmNormalFallback(isRight);
@@ -654,7 +741,7 @@ public class WhisperManager : UdonSharpBehaviour
         bool ok = count >= Mathf.Clamp(requiredCount, 1, 4);
 
         if (fingerLabel != null)
-            fingerLabel.text = $"指({(isRight ? "R" : "L")}): {count}/{Mathf.Clamp(requiredCount,1,4)}";
+            fingerLabel.text = $"指({(isRight ? "R" : "L")}): {count}/{Mathf.Clamp(requiredCount, 1, 4)}";
 
         return ok;
     }
@@ -693,8 +780,9 @@ public class WhisperManager : UdonSharpBehaviour
     // ───────────────── 音声制御 & UI ─────────────────
     private void EnableWhisper()
     {
-     
+
         isWhispering = true;
+        _talkerHoldUntil = Time.time + talkerExitGraceSec; // 入った直後は少し粘る
         UpdateStateLabel(true);
 
         if (whisperBgImage != null) whisperBgImage.color = whisperBgColor;
@@ -714,25 +802,24 @@ public class WhisperManager : UdonSharpBehaviour
 
         // ダッキング（話し手）
         _duckTarget = 1f;
-
-            // --- Gate 起動 ---
+        // EnableWhisper() の中（先頭～ターゲット決定までの直前）
         if (gatePool != null && _myGate == null)
             _myGate = gatePool.GetGateForLocal();
 
         int target = -1;
-        var other = _FindNearestListener();   // 既存の近接推定を使用
+        var other = _FindNearestListener();
         if (other != null) target = other.playerId;
 
+        // Gate が取れていれば OwnerStart（内部で SetOwner & RequestSerialization）
         if (_myGate != null) _myGate.OwnerStart(target);
         _lastTargetPid = target;
 
-        // ネットワーク配信（既存）
         if (reply != null) reply.SendCustomEvent("TalkerEnter");
     }
 
     private void DisableWhisper()
     {
-        
+
         isWhispering = false;
         UpdateStateLabel(false);
 
@@ -743,12 +830,11 @@ public class WhisperManager : UdonSharpBehaviour
         _iconTarget = iconExitAlpha;
         _ledTarget = 0f;
         _duckTarget = 0f;
-        
+
         // --- Gate 停止 ---
         if (_myGate != null) _myGate.OwnerStop();
         _lastTargetPid = -1;
 
-        // ネットワーク配信（WhisperReply に委譲）
         if (reply != null) reply.SendCustomEvent("TalkerExit");
     }
 
@@ -1000,7 +1086,7 @@ public class WhisperManager : UdonSharpBehaviour
     }
 
     // ===== Listener 安定性表示（WhisperRelay から転送呼び出し）=====
-    public void OnWhisperEnter(float dR, float dL)  { OnSample(dR, dL, "ENTER"); }
+    public void OnWhisperEnter(float dR, float dL) { OnSample(dR, dL, "ENTER"); }
     public void OnWhisperPing(float dR, float dL, bool keepAlive) { OnSample(dR, dL, keepAlive ? "PING_KEEPALIVE" : "PING"); }
     public void OnWhisperExit()
     {
@@ -1020,7 +1106,7 @@ public class WhisperManager : UdonSharpBehaviour
         lastPingTime = Time.time;
 
         float near = Mathf.Min(dR, dL);            // 耳の区別なし
-        bool inRange  = near <= enterDistance;     // ON候補
+        bool inRange = near <= enterDistance;     // ON候補
         bool outRange = near >= exitDistance;      // OFF候補
 
         Debug.Log($"{LOG} SAMPLE tag={tag} near={near:F2}");
@@ -1062,9 +1148,115 @@ public class WhisperManager : UdonSharpBehaviour
 
     private void UpdateLabel(string text)
     {
-        if (replyLabelTMP  != null) replyLabelTMP.text  = text;
+        if (replyLabelTMP != null) replyLabelTMP.text = text;
         if (replyLabelUGUI != null) replyLabelUGUI.text = text;
     }
+
+    // 候補を賢く選ぶ：掌向きOK＆距離しきい値内の中で最短を返す。なければ fallbackNearest が true のとき最寄り。
+    private int _SelectTargetSmart(bool preferRight, bool preferLeft, bool fallbackNearest)
+    {
+        var lp = Networking.LocalPlayer; if (lp == null) return -1;
+
+        VRCPlayerApi[] list = new VRCPlayerApi[VRCPlayerApi.GetPlayerCount()];
+        VRCPlayerApi.GetPlayers(list);
+
+        // 手の基準位置
+        Vector3 wristR = lp.GetBonePosition(HumanBodyBones.RightHand);
+        Vector3 wristL = lp.GetBonePosition(HumanBodyBones.LeftHand);
+
+        float bestDist = 1e9f;
+        int bestPid = -1;
+
+        for (int i = 0; i < list.Length; i++)
+        {
+            var p = list[i];
+            if (p == null || !p.IsValid() || p.isLocal) continue;
+
+            // 両手を評価（使う手だけ見る）
+            float dBestForThis = 1e9f;
+            bool okForThis = false;
+
+            if (preferRight && wristR != Vector3.zero)
+            {
+                float d = Vector3.Distance(wristR, p.GetBonePosition(HumanBodyBones.Head));
+                bool orientOK; float dotS, dyRaw, dyNorm;
+                orientOK = IsPalmFacingEarByThreshold(p, true, false, out dotS, out dyRaw, out dyNorm); // enter条件
+                if (orientOK && d <= targetCandidateMaxDist)
+                {
+                    okForThis = true;
+                    if (d < dBestForThis) dBestForThis = d;
+                }
+                else if (fallbackNearest && d < dBestForThis) dBestForThis = d;
+            }
+
+            if (preferLeft && wristL != Vector3.zero)
+            {
+                float d = Vector3.Distance(wristL, p.GetBonePosition(HumanBodyBones.Head));
+                bool orientOK; float dotS, dyRaw, dyNorm;
+                orientOK = IsPalmFacingEarByThreshold(p, false, false, out dotS, out dyRaw, out dyNorm);
+                if (orientOK && d <= targetCandidateMaxDist)
+                {
+                    okForThis = true;
+                    if (d < dBestForThis) dBestForThis = d;
+                }
+                else if (fallbackNearest && d < dBestForThis) dBestForThis = d;
+            }
+
+            // 合格者を優先、それ以外は fallbackNearest の場合のみ比較
+            if (okForThis)
+            {
+                if (dBestForThis < bestDist) { bestDist = dBestForThis; bestPid = p.playerId; }
+            }
+            else if (fallbackNearest)
+            {
+                if (dBestForThis < bestDist) { bestDist = dBestForThis; bestPid = p.playerId; }
+            }
+        }
+
+        return bestPid;
+    }
+
+    // 現在のターゲットはまだ“囁ける条件”を満たしているか？
+    private bool _IsTargetStillValid(int pid)
+    {
+        if (pid < 0) return false;
+        var lp = Networking.LocalPlayer; if (lp == null) return false;
+        var p = VRCPlayerApi.GetPlayerById(pid); if (p == null || !p.IsValid()) return false;
+
+        // 右/左いずれかで条件OKなら継続
+        float ds; float dr; float dn;
+        bool okR = IsPalmFacingEarByThreshold(p, true, false, out ds, out dr, out dn)
+                   && Vector3.Distance(lp.GetBonePosition(HumanBodyBones.RightHand), p.GetBonePosition(HumanBodyBones.Head)) <= targetCandidateMaxDist;
+        bool okL = IsPalmFacingEarByThreshold(p, false, false, out ds, out dr, out dn)
+                   && Vector3.Distance(lp.GetBonePosition(HumanBodyBones.LeftHand), p.GetBonePosition(HumanBodyBones.Head)) <= targetCandidateMaxDist;
+
+        return okR || okL;
+    }
+
+    // 新候補が現ターゲットより十分近いか？
+    private bool _IsSignificantlyCloser(int newPid, int currentPid)
+    {
+        if (newPid < 0 || currentPid < 0) return true;
+        var lp = Networking.LocalPlayer; if (lp == null) return true;
+
+        var pn = VRCPlayerApi.GetPlayerById(newPid);
+        var pc = VRCPlayerApi.GetPlayerById(currentPid);
+        if (pn == null || !pn.IsValid()) return false;
+        if (pc == null || !pc.IsValid()) return true;
+
+        float dNew = Mathf.Min(
+            Vector3.Distance(lp.GetBonePosition(HumanBodyBones.RightHand), pn.GetBonePosition(HumanBodyBones.Head)),
+            Vector3.Distance(lp.GetBonePosition(HumanBodyBones.LeftHand), pn.GetBonePosition(HumanBodyBones.Head))
+        );
+        float dCur = Mathf.Min(
+            Vector3.Distance(lp.GetBonePosition(HumanBodyBones.RightHand), pc.GetBonePosition(HumanBodyBones.Head)),
+            Vector3.Distance(lp.GetBonePosition(HumanBodyBones.LeftHand), pc.GetBonePosition(HumanBodyBones.Head))
+        );
+
+        if (dCur <= 0.0001f) return true;
+        return (dNew <= dCur * targetPreferCloserFactor);
+    }
+
 
     // ───────────────── Ducking ─────────────────
     private void _TickDuck()

@@ -58,23 +58,23 @@ public class WhisperRelay : UdonSharpBehaviour
     [Range(0f, 1f)] public float iconAlphaOff = 0f;
     public float iconFadeInTime = 0.20f;
     public float iconFadeOutTime = 0.15f;
-// ★ 追加: リスナーダッキングの詳細パラメータ（話し手側と同等）
-[Header("Listener Ducking (Local)")]
-public AudioSource[] duckTargets;
-[Range(0f, 1f)] public float duckLevelListener = 0.35f;
-[Tooltip("ローパスを使う場合は ON")]
-public bool duckUseLowpass = true;
-[Range(100, 22000)] public int duckLowpassCutoff = 900;
-[Tooltip("ダックの入り時間(秒)")]
-public float duckFadeInTime = 0.15f;
-[Tooltip("ダックの戻し時間(秒)")]
-public float duckFadeOutTime = 0.20f;
+    // ★ 追加: リスナーダッキングの詳細パラメータ（話し手側と同等）
+    [Header("Listener Ducking (Local)")]
+    public AudioSource[] duckTargets;
+    [Range(0f, 1f)] public float duckLevelListener = 0.35f;
+    [Tooltip("ローパスを使う場合は ON")]
+    public bool duckUseLowpass = true;
+    [Range(100, 22000)] public int duckLowpassCutoff = 900;
+    [Tooltip("ダックの入り時間(秒)")]
+    public float duckFadeInTime = 0.15f;
+    [Tooltip("ダックの戻し時間(秒)")]
+    public float duckFadeOutTime = 0.20f;
 
-// ★ 追加: ダッキング内部状態
-private float[] _duckOrigVol;
-private AudioLowPassFilter[] _duckLPF;
-private int[] _duckOrigCutoff;
-private bool[] _duckOrigLPFEnabled;
+    // ★ 追加: ダッキング内部状態
+    private float[] _duckOrigVol;
+    private AudioLowPassFilter[] _duckLPF;
+    private int[] _duckOrigCutoff;
+    private bool[] _duckOrigLPFEnabled;
     private float _duckAlpha = 0f, _duckTarget = 0f;
 
     // ───────── Logging ─────────
@@ -85,7 +85,10 @@ private bool[] _duckOrigLPFEnabled;
     public bool loopbackInSolo = true;
     public string logTag = "[Whisper]";
 
- 
+    [Header("Voice Gate pool (for target check)")]
+    public WhisperGatePool gatePool;
+
+
     // 状態
     private VRCPlayerApi _local;
     private bool _listenerActive;
@@ -111,7 +114,7 @@ private bool[] _duckOrigLPFEnabled;
     {
         _local = Networking.LocalPlayer;
 
-            // ★ 変更: Duck 初期化を拡張（LPFも握る）
+        // ★ 変更: Duck 初期化を拡張（LPFも握る）
         if (duckTargets != null && duckTargets.Length > 0)
         {
             int n = duckTargets.Length;
@@ -222,53 +225,59 @@ private bool[] _duckOrigLPFEnabled;
         if (sp == null || sp.isLocal) return;
 
         bool earRight; float dR, dL;
-        if (!_IsMyHeadNearSpeakersHandEx(sp, listenerStartDistance, out earRight, out dR, out dL))
-        {
-            L($"RECV Enter from {sp.playerId}:{sp.displayName} IGNORED (too far) dR={dR:F2} dL={dL:F2}");
-            return;
-        }
+        bool near = _IsMyHeadNearSpeakersHandEx(sp, listenerStartDistance, out earRight, out dR, out dL);
+        bool allow = near && _ShouldShowForSpeaker(sp);
 
         _speakerId = sp.playerId;
-        _earRight = earRight; // ※配置には使わない
-        _MarkAlive();
-        _SetListenerVisual(true, _earRight);
+        _earRight = earRight;
+
+        if (allow) { _MarkAlive(); _SetListenerVisual(true, _earRight); }
+        else       { _listenerActive = false; _SetListenerVisual(false, _earRight); }
 
         if (forwardToManager && manager != null) manager.OnWhisperEnter(dR, dL);
-
-        L($"RECV Enter from {sp.playerId}:{sp.displayName} OK ear={(earRight ? "R" : "L")} dR={dR:F2} dL={dL:F2}");
+        L($"RECV Enter from {sp.playerId}:{sp.displayName} allow={allow} near={near} dR={dR:F2} dL={dL:F2}");
     }
+
 
     public void W_Ping()
+{
+    var sp = Networking.GetOwner(gameObject);
+    if (sp == null || sp.isLocal) return;
+
+    if (_speakerId == sp.playerId)
     {
-        var sp = Networking.GetOwner(gameObject);
-        if (sp == null || sp.isLocal) return;
+        bool earRight; float dR, dL;
+        _IsMyHeadNearSpeakersHandEx(sp, listenerStartDistance * 1.25f, out earRight, out dR, out dL);
+        _earRight = earRight;
 
-        if (_speakerId == sp.playerId)
-        {
-            bool earRight; float dR, dL;
-            _IsMyHeadNearSpeakersHandEx(sp, listenerStartDistance * 1.25f, out earRight, out dR, out dL);
-            _earRight = earRight; // ※配置には使わない
-            _MarkAlive();
-            _SetListenerVisual(true, _earRight);
+        bool allow = _ShouldShowForSpeaker(sp);
+        _MarkAlive();
+        _SetListenerVisual(allow, _earRight);
 
-            if (forwardToManager && manager != null) manager.OnWhisperPing(dR, dL, true);
-            L($"RECV Ping from {sp.playerId} keepAlive ear={(earRight ? "R" : "L")} dR={dR:F2} dL={dL:F2}");
-            return;
-        }
-
-        bool ok; bool ear; float dR2, dL2;
-        ok = _IsMyHeadNearSpeakersHandEx(sp, listenerStartDistance, out ear, out dR2, out dL2);
-        if (ok)
-        {
-            // ... late activate ...
-            L($"RECV Ping (late activate) from {sp.playerId}:{sp.displayName} ear={(ear ? "R" : "L")} dR={dR2:F2} dL={dL2:F2}");
-        }
-        else
-        {
-            L($"RECV Ping from {sp.playerId}:{sp.displayName} ignored (not near) dR={dR2:F2} dL={dL2:F2}");
-        }
-
+        if (forwardToManager && manager != null) manager.OnWhisperPing(dR, dL, true);
+        L($"RECV Ping keepAlive allow={allow} dR={dR:F2} dL={dL:F2}");
+        return;
     }
+
+    // “遅れて条件を満たした”人向け
+    bool ear; float dR2, dL2;
+    bool near = _IsMyHeadNearSpeakersHandEx(sp, listenerStartDistance, out ear, out dR2, out dL2);
+    bool allowLate = near && _ShouldShowForSpeaker(sp);
+
+    if (allowLate)
+    {
+        _speakerId = sp.playerId;
+        _earRight = ear;
+        _MarkAlive();
+        _SetListenerVisual(true, _earRight);
+        L($"RECV Ping (late activate) allowLate=true dR={dR2:F2} dL={dL2:F2}");
+    }
+    else
+    {
+        L($"RECV Ping ignored allowLate=false near={near} dR={dR2:F2} dL={dL2:F2}");
+    }
+}
+
 
     public void W_Exit()
     {
@@ -291,7 +300,7 @@ private bool[] _duckOrigLPFEnabled;
 
     void Update()
     {
-            // ヘッドロックの追従
+        // ヘッドロックの追従
         _TickVignetteTransform();
         _TickIconTransform();
         _TickVignetteFade();
@@ -371,7 +380,7 @@ private bool[] _duckOrigLPFEnabled;
         else { rightEar = false; return dL < thr; }
     }
 
-        private void _SetListenerVisual(bool on, bool earRight /*unused*/)
+    private void _SetListenerVisual(bool on, bool earRight /*unused*/)
     {
         // Vignette 色・アルファ目標
         if (vignetteImage != null)
@@ -500,9 +509,9 @@ private bool[] _duckOrigLPFEnabled;
         Debug.Log($"{logTag} {who} | {msg}");
     }
 
-   
-    
-       // ===== Debug API: ReplySwitch から呼ぶ =====
+
+
+    // ===== Debug API: ReplySwitch から呼ぶ =====
     public void DebugReplyOn()
     {
         _debugReplyLatched = true;
@@ -513,10 +522,25 @@ private bool[] _duckOrigLPFEnabled;
     }
 
     public void DebugReplyOff()
-    {  
-     _debugReplyLatched = false;
-       _listenerActive = false;
+    {
+        _debugReplyLatched = false;
+        _listenerActive = false;
         _SetListenerVisual(false, _earRight);
         L("DEBUG reply OFF (latched)");
-   }
+    }
+
+    private bool _ShouldShowForSpeaker(VRCPlayerApi speaker)
+    {
+        if (speaker == null) return false;
+        if (gatePool == null) return true; // 参照が無い場合は従来挙動（距離のみ）
+
+        var g = gatePool.GetGateAssignedTo(speaker.playerId);
+        var lp = _local ?? Networking.LocalPlayer;
+        if (g == null || lp == null) return false;
+
+        // 「話者のGateがON」かつ「targetPidが自分」だけ可
+        return g.gateOn && g.targetPid == lp.playerId;
+    }
+
+
 }

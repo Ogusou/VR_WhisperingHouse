@@ -5,224 +5,186 @@ using VRC.Udon;
 using TMPro;
 using UnityEngine.UI;
 
-/// <summary>
-/// WhisperVoiceGate
-/// 役割: 話者(=このオブジェクトの Owner)の声を、各クライアント側で
-/// - targetPid のクライアントだけ「近距離(whisperNear/Far)」で聞こえる
-/// - 第三者は「Far=0（ミュート相当）」
-/// にする“ローカル適用装置”
-///
-/// 変更点(2025-09):
-/// - Re-apply 追加（他スクリプトの上書きを抑止）
-/// - ターゲット不在時の安全動作を選択できるフラグ追加
-/// - デバッグ表示を常時更新可能に
-/// - Join/Leave/Ownership/Deserialization で再適用
-/// </summary>
+[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 public class WhisperVoiceGate : UdonSharpBehaviour
 {
-    [Header("Whisper distances (heard only by target)")]
-    public float whisperNear = 0f;
-    public float whisperFar  = 0.30f;
+    [UdonSynced] public int assignedPid = -1;  // このゲートの「割当て所有者」
+    [UdonSynced] public int targetPid   = -1;  // 受信者
+    [UdonSynced] public bool gateOn     = false;
 
-    [Header("Normal distances (when gateOff)")]
-    public float normalNear = 0f;
-    public float normalFar  = 25f;
+    [Header("Assigned index (pool sets it)")]
+    public int assignedIndex = -1;
 
-    [Header("Behavior when target is missing")]
-    [Tooltip("true: ターゲット不在時は全員ミュート(Far=0) / false: 通常距離に戻す")]
-    public bool muteAllWhenNoTarget = true;
-
-    [Header("Re-apply (override protection)")]
-    [Tooltip("毎フレーム/一定周期で再適用して、他スクリプトの上書きを回避")]
-    public bool reapplyEveryFrame = true;
-    [Tooltip("reapplyEveryFrame=false のとき、定期的に再適用する間隔(秒)")]
-    public float reapplyInterval = 0.25f;
-
-    [Header("Debug Label (optional)")]
     public TextMeshProUGUI debugLabelTMP;
-    public Text debugLabelUGUI;
-    public bool debugShowEveryFrame = true;
-    public float debugUpdateInterval = 0.25f;
+    public Text           debugLabelUGUI;
+    public bool  debugShowEveryFrame = false;
+    private float _nextDebugRefresh;
+    
+   // 追加: インスペクタで調整できるように
+[Header("Voice distances & gain")]
+public float normalNear   = 0f;
+public float normalFar    = 25f;
+public float normalGain   = 15f;   // 既定相当
 
-    [UdonSynced] public int  targetPid = -1;  // この人だけが聞こえる
-    [UdonSynced] public bool gateOn   = false;
+public float whisperNear  = 0f; 
+public float whisperFar   = 25f; // いま使っている値
+public float whisperGain  = 15f;   // 少しだけ底上げ（18–24 で調整）
 
-    private float _nextReapply;
-    private float _nextDebug;
+    // 追加: 再適用の間隔（保険）
+    [Header("Reapply (watchdog)")]
+    [Tooltip("囁きON中にこの間隔でSetVoiceDistanceFarを再適用します")]
+    public float reapplyInterval = 0.5f;
+        private float _nextReapply;
 
-    // ===== Owner（話者）側 API =====
+
     public void OwnerStart(int targetPlayerId)
     {
         var me = Networking.LocalPlayer; if (me == null) return;
         if (!Networking.IsOwner(gameObject)) Networking.SetOwner(me, gameObject);
 
+        assignedPid = me.playerId;
         targetPid = targetPlayerId;
         gateOn = true;
         RequestSerialization();
-
         _ApplyLocal();
-        _UpdateDebugLabel(true);
+        _UpdateDebugLabel();
     }
 
     public void OwnerUpdateTarget(int targetPlayerId)
     {
-        var me = Networking.LocalPlayer; if (me == null) return;
-        if (!Networking.IsOwner(gameObject)) Networking.SetOwner(me, gameObject);
+        if (!Networking.IsOwner(gameObject)) return;
+        var me = Networking.LocalPlayer;
+        if (me != null && assignedPid != me.playerId) assignedPid = me.playerId;
 
         targetPid = targetPlayerId;
+        gateOn    = true;
         RequestSerialization();
-
         _ApplyLocal();
-        _UpdateDebugLabel(true);
+        _UpdateDebugLabel();
     }
 
     public void OwnerStop()
     {
-        var me = Networking.LocalPlayer; if (me == null) return;
-        if (!Networking.IsOwner(gameObject)) Networking.SetOwner(me, gameObject);
-
-        gateOn = false;
-        targetPid = -1;
+        if (!Networking.IsOwner(gameObject)) return;
+        gateOn = false; // assignedPid は維持
         RequestSerialization();
-
         _ApplyLocal();
-        _UpdateDebugLabel(true);
+        _UpdateDebugLabel();
     }
 
-    // ===== ネットワーク/人数変動イベント =====
-    public override void OnDeserialization()
-    {
-        _ApplyLocal();
-        _UpdateDebugLabel(true);
-    }
-
-    public override void OnOwnershipTransferred(VRCPlayerApi _)
-    {
-        _ApplyLocal();
-        _UpdateDebugLabel(true);
-    }
-
-    public override void OnPlayerJoined(VRCPlayerApi _)
-    {
-        _ApplyLocal();
-        _UpdateDebugLabel(true);
-    }
-
-    public override void OnPlayerLeft(VRCPlayerApi left)
-    {
-        // ターゲットが抜けたら安全側へ
-        if (left != null && left.playerId == targetPid)
-        {
-            targetPid = -1;
-            if (Networking.IsOwner(gameObject)) RequestSerialization();
-        }
-        _ApplyLocal();
-        _UpdateDebugLabel(true);
-    }
-
-    void Start()
-    {
-        _ApplyLocal();
-        _UpdateDebugLabel(true);
-        _nextReapply = Time.time + reapplyInterval;
-        _nextDebug   = Time.time + debugUpdateInterval;
-    }
+    public override void OnDeserialization()                { _ApplyLocal(); _UpdateDebugLabel(); }
+    public override void OnOwnershipTransferred(VRCPlayerApi _) { _ApplyLocal(); _UpdateDebugLabel(); }
+    void Start()                                            { _ApplyLocal(); _UpdateDebugLabel(); }
 
     void Update()
+{
+    // 既存のデバッグ更新
+    if (debugShowEveryFrame)
     {
-        // 定期再適用（他のUdonに上書きされても勝つ）
-        if (reapplyEveryFrame || Time.time >= _nextReapply)
+        if (Time.time >= _nextDebugRefresh)
         {
-            _ApplyLocal();
-            _nextReapply = Time.time + reapplyInterval;
-        }
-
-        // デバッグ表示
-        if (debugShowEveryFrame && Time.time >= _nextDebug)
-        {
-            _UpdateDebugLabel(false);
-            _nextDebug = Time.time + debugUpdateInterval;
+            _nextDebugRefresh = Time.time + 0.25f;
+            _UpdateDebugLabel();
         }
     }
 
-    // ===== 実装本体（各クライアントが “Ownerの声” をどう聞くかを決める） =====
+    // 追加: 囁きON中は保険として定期再適用
+    if (gateOn && Time.time >= _nextReapply)
+    {
+        _nextReapply = Time.time + Mathf.Max(0.1f, reapplyInterval);
+        _ApplyLocal();
+    }
+}
+
+    // ▼ 各クライアントが“自分から見た talker の声の距離”を更新
     private void _ApplyLocal()
-    {
-        var owner = Networking.GetOwner(gameObject);   // 話者A
-        if (owner == null || !owner.IsValid()) return;
+{
+    var talker = Networking.GetOwner(gameObject);
+    if (talker == null || !talker.IsValid()) return;
 
-        var local = Networking.LocalPlayer;
-        if (local == null) return;
+    var local = Networking.LocalPlayer;
 
-        // Gate OFF → 全員通常へ
-        if (!gateOn)
-        {
-            owner.SetVoiceDistanceNear(normalNear);
-            owner.SetVoiceDistanceFar(normalFar);
-            owner.SetVoiceLowpass(false);
-            return;
-        }
-
-        var tgt = (targetPid >= 0) ? VRCPlayerApi.GetPlayerById(targetPid) : null;
-        bool targetValid = (tgt != null && tgt.IsValid());
-
-        if (!targetValid)
-        {
-            // ターゲット不在時の安全動作
-            if (muteAllWhenNoTarget)
-            {
-                owner.SetVoiceDistanceNear(0f);
-                owner.SetVoiceDistanceFar(0f);
-                owner.SetVoiceLowpass(false);
-            }
-            else
-            {
-                owner.SetVoiceDistanceNear(normalNear);
-                owner.SetVoiceDistanceFar(normalFar);
-                owner.SetVoiceLowpass(false);
-            }
-            return;
-        }
-
-        if (local.playerId == targetPid)
-        {
-            // 受信者だけ近距離で聞こえる
-            owner.SetVoiceDistanceNear(whisperNear);
-            owner.SetVoiceDistanceFar(whisperFar);
-            owner.SetVoiceLowpass(false);
-        }
-        else
-        {
-            // 第三者はミュート相当
-            owner.SetVoiceDistanceNear(0f);
-            owner.SetVoiceDistanceFar(0f);
-            owner.SetVoiceLowpass(false);
-        }
+    if (!gateOn || targetPid < 0 || local == null)
+    {   // 通常時
+        talker.SetVoiceDistanceNear(normalNear);
+        talker.SetVoiceDistanceFar(normalFar);
+        talker.SetVoiceGain(normalGain);
+        talker.SetVoiceLowpass(false);
+        return;
     }
 
-    private void _UpdateDebugLabel(bool force)
-    {
-        if (debugLabelTMP == null && debugLabelUGUI == null) return;
-        if (!force && !debugShowEveryFrame) return;
+    bool meIsTarget = (local.playerId == targetPid);
 
-        var owner = Networking.GetOwner(gameObject);
-        var local = Networking.LocalPlayer;
-        var targetPlayer = (targetPid >= 0) ? VRCPlayerApi.GetPlayerById(targetPid) : null;
-
-        string ownerStr = (owner != null && owner.IsValid()) ? $"{owner.playerId}:{owner.displayName}" : "(none)";
-        string targetStr = (targetPlayer != null && targetPlayer.IsValid())
-            ? $"{targetPid}:{targetPlayer.displayName}"
-            : (targetPid >= 0 ? targetPid.ToString() : "-");
-        string you = (local != null && targetPid == local.playerId && gateOn) ? "  ←YOU" : "";
-        string safe = muteAllWhenNoTarget ? "muteAllWhenNoTarget=ON" : "muteAllWhenNoTarget=OFF";
-
-        string text =
-            $"[Gate '{name}']\n" +
-            $"On={gateOn}  {safe}\n" +
-            $"Owner={ownerStr}\n" +
-            $"Target={targetStr}{you}";
-
-        if (debugLabelTMP != null)  debugLabelTMP.text  = text;
-        if (debugLabelUGUI != null) debugLabelUGUI.text = text;
+    if (meIsTarget)
+    {   // ★自分が相手のときだけ“聞こえる囁き”にする
+        talker.SetVoiceDistanceNear(whisperNear);
+        talker.SetVoiceDistanceFar(whisperFar);
+        talker.SetVoiceGain(whisperGain);
+        talker.SetVoiceLowpass(false);
     }
+    else
+    {   // 第三者はミュート
+        talker.SetVoiceDistanceNear(0f);
+        talker.SetVoiceDistanceFar(0f);
+        talker.SetVoiceGain(normalGain); // 任意（何でも可）
+        talker.SetVoiceLowpass(false);
+    }
+}
+private void _UpdateDebugLabel()
+{
+    if (debugLabelTMP == null && debugLabelUGUI == null) return;
+
+    var owner  = Networking.GetOwner(gameObject);
+    var local  = Networking.LocalPlayer;
+    var target = (targetPid >= 0) ? VRCPlayerApi.GetPlayerById(targetPid) : null;
+
+    string ownerStr  = (owner  != null && owner.IsValid())  ? $"{owner.playerId}:{owner.displayName}"   : "(none)";
+    string targetStr = (target != null && target.IsValid()) ? $"{targetPid}:{target.displayName}"
+                                                            : (targetPid >= 0 ? targetPid.ToString() : "-");
+
+    // このクライアントで「実際に適用している A(=owner) の Far 値」
+    float farForYou =
+        (!gateOn || targetPid < 0 || local == null) ? normalFar :
+        (local.playerId == targetPid ? whisperFar : 0f);
+        
+    
+    // float nearForYou =
+    //     (!gateOn || targetPid < 0 || local == null) ? normalNear :
+    //     (local.playerId == targetPid ? whisperNear : 0f);
+
+    // float gainForYou =
+    //     (!gateOn || targetPid < 0 || local == null) ? normalGain :
+    //     (local.playerId == targetPid ? whisperGain : normalGain);
+
+    // 頭距離（取得できない/0ベクトルのときは - 表示）
+        float headDist = -1f;
+    if (owner != null && owner.IsValid() && local != null)
+    {
+        Vector3 a = owner.GetBonePosition(HumanBodyBones.Head);
+        Vector3 b = local.GetBonePosition(HumanBodyBones.Head);
+        if (a != Vector3.zero && b != Vector3.zero) headDist = Vector3.Distance(a, b);
+    }
+
+    string youMark  = (local != null && targetPid == local.playerId && gateOn) ? "  ←YOU" : "";
+    string gateLine = (assignedIndex >= 0) ? $"Gate: {assignedIndex:00}\n" : "";
+
+    // 聞こえる/届かないの目安
+    string audible = (headDist >= 0f && headDist <= farForYou) ? "AUDIBLE" : "OUT_OF_RANGE";
+
+    string text =
+        gateLine +
+        $"Gate '{name}'\n" +
+        $"On: {gateOn}\n" +
+        $"Owner: {ownerStr}\n" +
+        $"TargetPid: {targetStr}{youMark}\n" +
+        $"FarForYOU: {farForYou:F2}m\n" +
+        // $"NearForYOU: {nearForYou:F2}m\n" +
+        // $"GainForYOU: {gainForYou:F1}\n" +
+        $"HeadDistToYOU: {(headDist >= 0f ? headDist.ToString("F2") : "-")}m  [{audible}]";
+
+    // ★ ここが抜けていた！
+    if (debugLabelTMP  != null) debugLabelTMP.text  = text;
+    if (debugLabelUGUI != null) debugLabelUGUI.text = text;
+}
+
 }
