@@ -147,42 +147,21 @@ private void _UpdateDebugLabel()
         (!gateOn || targetPid < 0 || local == null) ? normalFar :
         (local.playerId == targetPid ? whisperFar : 0f);
         
-    
-    // float nearForYou =
-    //     (!gateOn || targetPid < 0 || local == null) ? normalNear :
-    //     (local.playerId == targetPid ? whisperNear : 0f);
 
-    // float gainForYou =
-    //     (!gateOn || targetPid < 0 || local == null) ? normalGain :
-    //     (local.playerId == targetPid ? whisperGain : normalGain);
-
-    // 頭距離（取得できない/0ベクトルのときは - 表示）
-        float headDist = -1f;
-    if (owner != null && owner.IsValid() && local != null)
-    {
-        Vector3 a = owner.GetBonePosition(HumanBodyBones.Head);
-        Vector3 b = local.GetBonePosition(HumanBodyBones.Head);
-        if (a != Vector3.zero && b != Vector3.zero) headDist = Vector3.Distance(a, b);
-    }
 
     string youMark  = (local != null && targetPid == local.playerId && gateOn) ? "  ←YOU" : "";
     string gateLine = (assignedIndex >= 0) ? $"Gate: {assignedIndex:00}\n" : "";
 
-    // 聞こえる/届かないの目安
-    string audible = (headDist >= 0f && headDist <= farForYou) ? "AUDIBLE" : "OUT_OF_RANGE";
 
-    string text =
-        gateLine +
-        $"Gate '{name}'\n" +
-        $"On: {gateOn}\n" +
-        $"Owner: {ownerStr}\n" +
-        $"TargetPid: {targetStr}{youMark}\n" +
-        $"FarForYOU: {farForYou:F2}m\n" +
-        // $"NearForYOU: {nearForYou:F2}m\n" +
-        // $"GainForYOU: {gainForYou:F1}\n" +
-        $"HeadDistToYOU: {(headDist >= 0f ? headDist.ToString("F2") : "-")}m  [{audible}]";
 
-    // ★ ここが抜けていた！
+        string text =
+            gateLine +
+            $"Gate '{name}'\n" +
+            $"On: {gateOn}\n" +
+            $"Owner: {ownerStr}\n" +
+            $"TargetPid: {targetStr}{youMark}\n" +
+            $"FarForYOU: {farForYou:F2}m\n";
+
     if (debugLabelTMP  != null) debugLabelTMP.text  = text;
     if (debugLabelUGUI != null) debugLabelUGUI.text = text;
 }

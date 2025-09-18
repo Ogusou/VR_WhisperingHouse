@@ -57,13 +57,6 @@ public class WhisperManager : UdonSharpBehaviour
     [Tooltip("フォールバック dy の符号補正（+1/-1）")]
     public float pseudoDySign = 1f;
 
-    // [Header("Whisper 音声設定 (m)")]
-    // public float whisperFar = 0.25f;
-    // public float whisperNear = 0f;
-
-    [Header("通常音声設定 (m)")]
-    public float normalFar = 25f;
-    public float normalNear = 0f;
 
     [Header("UI (TextMeshPro)")]
     public TextMeshProUGUI distanceLabel;
@@ -113,17 +106,6 @@ public class WhisperManager : UdonSharpBehaviour
     public float vignetteFadeOutTime = 0.15f;
     public Color talkerVignetteTint = new Color(1f, 0.55f, 0.55f, 1f); // 話し手色
 
-    // ───────── Whisper FX（見た目：手首LED）─────────
-    [Header("Whisper FX - 手首LED（エミッシブ点灯）")]
-    [Tooltip("チェックOFFでLED機能を完全無効（自動で消灯）")]
-    public bool enableWristLed = false;
-    [Tooltip("手首や手の甲の小さなメッシュの Renderer（Emission 有効推奨）")]
-    public Renderer wristLedRenderer;
-    public Color wristLedColor = new Color(0.4f, 1f, 0.9f, 1f);
-    public float wristLedOnIntensity = 1.6f;
-    public float wristLedOffIntensity = 0.0f;
-    public float wristLedFadeInTime = 0.20f;
-    public float wristLedFadeOutTime = 0.15f;
 
     // Whisper FX - Icon (Head-Locked HUD)
     [Header("Whisper FX - Icon (Head-Locked HUD)")]
@@ -246,7 +228,17 @@ public class WhisperManager : UdonSharpBehaviour
     private int _switchCounter = 0;
     private float _lastSwitchTime = -999f;
 
-    // 追加フィールド
+    // ▼ 追加フィールド
+    [Header("Reply Assist (after being whispered)")]
+    [Tooltip("直近で囁かれたあと、この秒数は“自分の口元だけ”でEnterを許可")]
+    public float replyAssistWindow = 3.0f;
+    public bool enableReplyAssist = true;
+    private float _replyAssistUntil = 0f;
+
+    // 便宜関数
+    private bool InReplyAssist() => enableReplyAssist && (Time.time < _replyAssistUntil);
+
+
     [Header("Whisper Talker Debounce")]
     [Tooltip("囁きOFFと判定されても、この秒数までは継続（一瞬の途切れを無視）")]
     public float talkerExitGraceSec = 0.35f;
@@ -256,6 +248,54 @@ public class WhisperManager : UdonSharpBehaviour
     private float _talkerHoldUntil = 0f;
     private int _switchCount = 0;
     private int _candidatePid = -1;
+
+
+    [Header("Hand Selection Strategy")]
+    [Tooltip("頭(口)の周囲に入っている手だけを常時評価（ひそひそ開始/返答どちらも）")]
+    public bool autoPickHandByHeadBubble = true;
+
+    [Tooltip("両手がバブルに入っているときの優先：true=掌向き(dot)優先 / false=口との距離優先")]
+    public bool preferBetterDotWhenBoth = true;
+
+    [Tooltip("グリップによる明示選択がある場合はそれを優先（ただしバブル内にある手のみ有効）")]
+    public bool preferGripIfSelected = true;
+
+    [Tooltip("口-手 距離(Enter半径)")]
+    public float headBubbleRadiusEnter = 0.18f;
+
+    [Tooltip("口-手 距離(Exit半径) ※ヒステリシス用に Enter より少し大きく")]
+    public float headBubbleRadiusExit = 0.24f;
+
+    [Tooltip("バブル判定の粘り（秒）")]
+    public float handGateStickSeconds = 0.25f;
+
+    [Tooltip("両手イン時に手を切り替える最小間隔（秒）")]
+    public float handSwitchCooldown = 0.25f;
+
+        // Hand Selection Strategy の近くに追加
+    [Header("Hand Lock (during whisper)")]
+    [Tooltip("入室を確定させた手を一定時間ロック（両手イン時の勝手な切替を防止）")]
+    public bool lockActiveHandWhileWhispering = true;
+
+    [Tooltip("入室後この秒数は必ずロックを維持")]
+    public float handLockMinSeconds = 0.60f;
+
+    [Tooltip("ロックしている手がバブルExit外判定になった連続フレーム数の閾値（これを超えたらロック解除可）")]
+    public int handLockReleaseConfirm = 3;
+
+    // 内部
+    private int   _lockedHand = -1;      // -1=未ロック, 0=右, 1=左
+    private float _handLockUntil = 0f;   // 時間で強制ロック維持
+    private int _handOutCount = 0;     // 連続アウト計数
+
+
+    // 内部
+    private float _rInUntil, _lInUntil;
+    private int   _autoChosenHand = -1; // -1=未選, 0=右, 1=左
+    private float _lastHandSwitchTime = -999f;
+
+    // ★追加：実際にWhisperを“開始”させた手（0=右,1=左,-1=不定）
+    private int _activeWhisperHand = -1;
 
 
 
@@ -291,8 +331,7 @@ public class WhisperManager : UdonSharpBehaviour
 
     // アイコン/LED の内部状態
     private float _iconAlpha = 0f, _iconTarget = 0f;
-    private float _ledIntensity = 0f, _ledTarget = 0f;
-    private MaterialPropertyBlock _mpbLed;
+  
 
     // ───────── ライフサイクル ─────────
     void Start()
@@ -309,15 +348,7 @@ public class WhisperManager : UdonSharpBehaviour
             _vigAlpha = 0f; _vigTarget = 0f;
         }
 
-        // 手首LED 初期化
-        if (wristLedRenderer != null)
-        {
-            _mpbLed = new MaterialPropertyBlock();
-            wristLedRenderer.GetPropertyBlock(_mpbLed);
-            _ledIntensity = 0f;
-            _ledTarget = enableWristLed ? wristLedOffIntensity : 0f; // 無効時は常に0
-            _ApplyWristLed();
-        }
+        
 
         UpdateLabel("受信: 未判定");
         Debug.Log($"{LOG} init enter={enterDistance:F2} exit={exitDistance:F2} confirm={confirmCount} timeout={pingTimeoutSec:F1}");
@@ -388,7 +419,6 @@ public class WhisperManager : UdonSharpBehaviour
 
             _TickVignetteFade();
             _TickIconFade();
-            _TickWristLedFade();
             _TickVignetteTransform();
             _TickIconTransform();
             _TickDuck();
@@ -423,7 +453,88 @@ public class WhisperManager : UdonSharpBehaviour
             else { evalRight = false; evalLeft = false; }
         }
 
-        // 手ごとの評価
+        // ── 追加：口バブルで常時“使う手”を自動決定（返答時だけでなく開始時も） ──
+        if (autoPickHandByHeadBubble)
+        {
+            bool bubbleloosened = useExitLoosenedThresholds && isWhispering;
+            bool inR = IsWristInMouthBubble(true,  bubbleloosened);
+            bool inL = IsWristInMouthBubble(false, bubbleloosened);
+
+            // 両手が入っている場合の自動候補
+            int want = -1;
+            if (inR ^ inL) want = inR ? 0 : 1;
+            else if (inR && inL)
+            {
+                if (preferBetterDotWhenBoth)
+                {
+                    float dotR = LooseDotToMouth(true);
+                    float dotL = LooseDotToMouth(false);
+                    want = (dotR >= dotL) ? 0 : 1;
+                }
+                else
+                {
+                    float dR = DistWristToMouth(true);
+                    float dL = DistWristToMouth(false);
+                    want = (dR <= dL) ? 0 : 1;
+                }
+            }
+
+            int useHand = -1;
+
+            // グリップ明示選択があれば優先（ただし“口バブル内”の手のみ有効）
+            if (preferGripIfSelected && enableGripSwitch && _selectedHand >= 0)
+            {
+                if ((_selectedHand == 0 && inR) || (_selectedHand == 1 && inL))
+                    useHand = _selectedHand;
+                else
+                    useHand = -1; // 選ばれていてもバブル外なら無効
+            }
+            else
+            {
+                // オート選択（クールダウンで揺れ抑制）
+                if (want >= 0 && (Time.time - _lastHandSwitchTime) >= handSwitchCooldown)
+                {
+                    _autoChosenHand    = want;
+                    _lastHandSwitchTime = Time.time;
+                }
+                useHand = _autoChosenHand;
+            }
+
+            // ★ロック中は基本その手だけを評価
+            if (lockActiveHandWhileWhispering && isWhispering && _lockedHand >= 0)
+            {
+                bool inLocked = IsWristInMouthBubble(_lockedHand == 0, bubbleloosened);
+
+                // 連続でExit外になったフレームをカウント
+                if (!inLocked) _handOutCount++;
+                else           _handOutCount = 0;
+
+                bool mustKeepLock =
+                    (Time.time < _handLockUntil)      // 最低ロック時間中
+                    || inLocked                       // まだバブル内
+                    || (_handOutCount < Mathf.Max(1, handLockReleaseConfirm)); // 少しの外れは許容
+
+                if (mustKeepLock)
+                {
+                    useHand = _lockedHand;            // 代表手を固定
+                    _autoChosenHand = _lockedHand;    // 内部状態も合わせておく
+                }
+                else
+                {
+                    // ロック解除（以降は通常の自動選択に戻す）
+                    _lockedHand = -1;
+                    _handOutCount = 0;
+                    _handLockUntil = 0f;
+                }
+            }
+
+
+            // “評価する手”を最終決定（他方は完全に無視＝干渉なし）
+            evalRight = (useHand == 0);
+            evalLeft  = (useHand == 1);
+        }
+
+        // ───── 手ごとの評価 ─────
         bool rOK = false, lOK = false, rOrient = false, lOrient = false;
         float rDot = 0f, lDot = 0f, rDy = 0f, lDy = 0f;
 
@@ -439,38 +550,72 @@ public class WhisperManager : UdonSharpBehaviour
         float showDy  = useRight ? rDy  : lDy;
         bool showOrientOK = useRight ? rOrient : lOrient;
 
-        if (orientLabel != null)
-            orientLabel.text = "掌向き" + (loosened ? "(Exit)" : "(Enter)") + ": " + (showOrientOK ? "OK" : "NG") +
-                            "  dot=" + showDot.ToString("F2") +
-                            "  dy=" + showDy.ToString("F2") + "m" +
-                            (enableModeDetection
-                                ? $"  (dot≥{coverDotSignedThresh:F2}, dyNorm≥{dyNormThresh:F2})"
-                                : $"  (dot {fixedDotMin:F2}–{fixedDotMax:F2}, dy≥{fixedDyRawMin:F2})");
+        // このフレームで“有効だった手”を決定
+        int activeHand = -1;
+        if (rOK && !lOK) activeHand = 0;                     // 右のみOK
+        else if (lOK && !rOK) activeHand = 1;                // 左のみOK
+        else if (rOK && lOK) activeHand = (useRight ? 0 : 1);// 両方OKなら代表手に合わせる
 
-        // 囁き状態の切り替え
-        if (anyWhisper && !isWhispering)
+        // ---- ここから デバウンス（粘り）＋状態遷移 ----
+        // ONが取れている間は毎フレームExit猶予を延長
+        if (anyWhisper)
+        {
+            _talkerHoldUntil = Time.time + talkerExitGraceSec;
+        }
+
+        // 今フレームの希望状態（一瞬のNGではOFFにしない）
+        bool wantWhisper = anyWhisper || (isWhispering && Time.time < _talkerHoldUntil);
+
+        // 状態切替（★旧ブロックは削除してこの1つだけに）
+        if (wantWhisper && !isWhispering)
         {
             EnableWhisper();
-            int hapticHand = (_selectedHand >= 0) ? _selectedHand : (useRight ? 0 : 1);
-            TriggerEnterHaptics(hapticHand, evalRight, evalLeft);
+
+            // 実際に判定OKだった手でハプティクス
+            _activeWhisperHand = activeHand;
+            TriggerEnterHaptics(_activeWhisperHand, evalRight, evalLeft);
+            // 実際に入室を成立させた手でロック開始
+        if (lockActiveHandWhileWhispering && _activeWhisperHand >= 0)
+        {
+            _lockedHand = _activeWhisperHand;
+            _handLockUntil = Time.time + Mathf.Max(0.1f, handLockMinSeconds);
+            _handOutCount = 0;
         }
-        else if (!anyWhisper && isWhispering)
+        }
+        else if (!wantWhisper && isWhispering)
         {
             DisableWhisper();
-            int hapticHand = (_selectedHand >= 0) ? _selectedHand : (evalRight ? 0 : (evalLeft ? 1 : 0));
+            _lockedHand = -1;
+            _handOutCount = 0;
+            _handLockUntil = 0f;
+
+            // 入室時に使った手を優先して退出ハプティクス
+            int hapticHand = (_activeWhisperHand >= 0)
+                ? _activeWhisperHand
+                : (evalRight ? 0 : (evalLeft ? 1 : -1));
+
             TriggerExitHaptics(hapticHand, evalRight, evalLeft);
+            _activeWhisperHand = -1; // リセット
         }
 
-        // ネットワーク配信（WhisperReply に委譲）
-        if (isWhispering && reply != null) reply.SendCustomEvent("TalkerTick");
+        // デバッグ表示
+        if (orientLabel != null)
+            orientLabel.text =
+                $" 掌向き" + (loosened ? "(Exit)" : "(Enter)") + ": " + (showOrientOK ? "OK" : "NG") +
+                "  dot=" + showDot.ToString("F2") +
+                "  dy="  + showDy.ToString("F2") + "m" +
+                (enableModeDetection
+                    ? $"  (dot≥{coverDotSignedThresh:F2}, dyNorm≥{dyNormThresh:F2})"
+                    : $"  (dot {fixedDotMin:F2}–{fixedDotMax:F2}, dy≥{fixedDyRawMin:F2})");
 
-        // FX 更新
+        // （このあと）ネットワーク配信・FX更新は従来どおり
+        if (isWhispering && reply != null) reply.SendCustomEvent("TalkerTick");
         _TickVignetteFade();
         _TickIconFade();
-        _TickWristLedFade();
         _TickVignetteTransform();
         _TickIconTransform();
         _TickDuck();
+
 
         // ───── ここから Gate ターゲットの“粘り + 確定切替”ロジック ─────
         if (isWhispering && Time.time >= _nextGateUpdateTime)
@@ -556,39 +701,66 @@ public class WhisperManager : UdonSharpBehaviour
 
 
     // ───────────────── 判定ひとまとめ ─────────────────
-    private bool EvaluateHand(bool isRight, bool loosened, out float dotSigned, out float dyRaw, out bool orientPass)
+   // 置き換え
+// EvaluateHand を差し替え（ロジックだけ）
+private bool EvaluateHand(bool isRight, bool loosened, out float dotSigned, out float dyRaw, out bool orientPass)
+{
+    dotSigned = 0f; dyRaw = 0f; orientPass = false;
+
+    // 追加：口バブル外の手は即NG（常時）
+    if (autoPickHandByHeadBubble)
     {
-        dotSigned = 0f; dyRaw = 0f; orientPass = false;
+        bool inBubble = IsWristInMouthBubble(isRight, loosened);
+        if (!inBubble) return false;
+    }
 
-        int needFingers = loosened ? Mathf.Max(1, minExtendedFingersExit) : Mathf.Max(1, minExtendedFingersEnter);
-        bool fingersOK = AreFingersExtended(isRight, needFingers);
 
-        float dotS, dyRawS, dyNormS;
-        bool orientSelf = IsPalmFacingEarByThreshold(localPlayer, isRight, loosened, out dotS, out dyRawS, out dyNormS);
-        float selfThr = loosened ? selfEarThresholdExit : selfEarThreshold;
-        bool distSelf = IsHandNearHead(localPlayer, selfThr, isRight);
+    int needFingers = loosened ? Mathf.Max(1, minExtendedFingersExit) : Mathf.Max(1, minExtendedFingersEnter);
+    bool fingersOK = AreFingersExtended(isRight, needFingers);
 
-        VRCPlayerApi other = FindNearestAny(isRight);
-        bool orientOther = false; float dotO = 0f, dyRawO = 0f, dyNormO = 0f; bool distOther = false;
-        if (other != null)
-        {
-            orientOther = IsPalmFacingEarByThreshold(other, isRight, loosened, out dotO, out dyRawO, out dyNormO);
-            float otherThr = loosened ? otherEarThresholdExit : otherEarThreshold;
-            distOther = IsOtherDistanceWithThreshold(other, isRight, otherThr);
-        }
+    // 自分口元に対する判定（共通で計算）
+    float dotS, dyRawS, dyNormS;
+    bool orientSelf = IsPalmFacingEarByThreshold(localPlayer, isRight, loosened, out dotS, out dyRawS, out dyNormS);
+    float selfThr   = loosened ? selfEarThresholdExit : selfEarThreshold;
+    bool distSelf   = IsHandNearHead(localPlayer, selfThr, isRight);
 
-        bool bothDistOK = (distSelf && distOther);
-        orientPass = (orientSelf || orientOther);
-        bool geomOK = bothDistOK && orientPass;
+    // ▼ ここが肝：返答支援ウィンドウ中だけ“自分の口元のみ”でOKにする
+    if (InReplyAssist())
+    {
+        orientPass = orientSelf;
+        bool geomOK = distSelf && orientPass;
 
-        UpdateBoolTMP(distanceLabel, bothDistOK, "距離");
-        UpdateBoolTMP(fingerLabel, fingersOK, "指");
+        UpdateBoolTMP(distanceLabel, distSelf, "距離(自口/Assist)");
+        UpdateBoolTMP(fingerLabel,  fingersOK, "指");
 
-        dotSigned = orientOther ? dotO : dotS;
-        dyRaw = orientOther ? dyRawO : dyRawS;
-
+        dotSigned = dotS;
+        dyRaw     = dyRawS;
         return geomOK && fingersOK;
     }
+
+    // ── 通常時：従来どおり「相手との距離＆向き」も必要 ──
+    VRCPlayerApi other = FindNearestAny(isRight);
+    bool orientOther = false; float dotO = 0f, dyRawO = 0f, dyNormO = 0f; bool distOther = false;
+    if (other != null)
+    {
+        orientOther = IsPalmFacingEarByThreshold(other, isRight, loosened, out dotO, out dyRawO, out dyNormO);
+        float otherThr = loosened ? otherEarThresholdExit : otherEarThreshold;
+        distOther = IsOtherDistanceWithThreshold(other, isRight, otherThr);
+    }
+
+    bool bothDistOK = (distSelf && distOther);
+    orientPass = (orientSelf || orientOther);
+    bool geomOK2 = bothDistOK && orientPass;
+
+    UpdateBoolTMP(distanceLabel, bothDistOK, "距離");
+    UpdateBoolTMP(fingerLabel,  fingersOK, "指");
+
+    dotSigned = orientOther ? dotO : dotS;
+    dyRaw     = orientOther ? dyRawO : dyRawS;
+
+    return geomOK2 && fingersOK;
+}
+
 
     // ───────────────── 向き＆しきい値 ─────────────────
     private bool IsPalmFacingEarByThreshold(VRCPlayerApi target, bool isRight, bool loosened,
@@ -798,7 +970,6 @@ public class WhisperManager : UdonSharpBehaviour
 
         _iconTarget = iconEnterAlpha;
         _vigTarget = vignetteEnterAlpha;
-        _ledTarget = enableWristLed ? wristLedOnIntensity : 0f;
 
         // ダッキング（話し手）
         _duckTarget = 1f;
@@ -828,7 +999,6 @@ public class WhisperManager : UdonSharpBehaviour
 
         _vigTarget = vignetteExitAlpha;
         _iconTarget = iconExitAlpha;
-        _ledTarget = 0f;
         _duckTarget = 0f;
 
         // --- Gate 停止 ---
@@ -910,40 +1080,6 @@ public class WhisperManager : UdonSharpBehaviour
         whisperIconRect.localScale = new Vector3(sx, sy, 1f);
     }
 
-    // ───────── FX（手首LED）─────────
-    private void _TickWristLedFade()
-    {
-        if (wristLedRenderer == null) return;
-
-        if (!enableWristLed)
-        {
-            if (_ledIntensity > 0f)
-            {
-                float stepOff = Time.deltaTime / Mathf.Max(0.01f, wristLedFadeOutTime);
-                _ledIntensity = Mathf.MoveTowards(_ledIntensity, 0f, stepOff);
-                _ApplyWristLed();
-            }
-            return;
-        }
-
-        float dur = (_ledTarget > _ledIntensity) ? Mathf.Max(0.01f, wristLedFadeInTime)
-                                                 : Mathf.Max(0.01f, wristLedFadeOutTime);
-        float step = Time.deltaTime / dur;
-        _ledIntensity = Mathf.MoveTowards(_ledIntensity, _ledTarget, step);
-        _ApplyWristLed();
-    }
-
-    private void _ApplyWristLed()
-    {
-        if (wristLedRenderer == null) return;
-        if (_mpbLed == null) _mpbLed = new MaterialPropertyBlock();
-        wristLedRenderer.GetPropertyBlock(_mpbLed);
-
-        Color emit = wristLedColor * Mathf.Max(0f, _ledIntensity);
-        _mpbLed.SetColor("_EmissionColor", emit);
-        _mpbLed.SetColor("_Color", new Color(wristLedColor.r, wristLedColor.g, wristLedColor.b, 1f));
-        wristLedRenderer.SetPropertyBlock(_mpbLed);
-    }
 
     // ───────── Haptics ─────────
     private void TriggerEnterHaptics(int selectedHand, bool evalRight, bool evalLeft)
@@ -1086,20 +1222,23 @@ public class WhisperManager : UdonSharpBehaviour
     }
 
     // ===== Listener 安定性表示（WhisperRelay から転送呼び出し）=====
-    public void OnWhisperEnter(float dR, float dL) { OnSample(dR, dL, "ENTER"); }
-    public void OnWhisperPing(float dR, float dL, bool keepAlive) { OnSample(dR, dL, keepAlive ? "PING_KEEPALIVE" : "PING"); }
-    public void OnWhisperExit()
-    {
-        lastPingTime = Time.time;
-        unstableCounter = confirmCount;
-        stableCounter = 0;
-        if (isReceiving)
-        {
-            isReceiving = false;
-            Debug.Log($"{LOG} RECV_STOP reason=exit");
-            UpdateLabel("受信: ❌ (exit)");
-        }
-    }
+   public void OnWhisperEnter(float dR, float dL) {
+    // 既存処理の前後どちらでもOK
+    _replyAssistUntil = Time.time + replyAssistWindow;
+    OnSample(dR, dL, "ENTER"); // 既存
+}
+    public void OnWhisperPing(float dR, float dL, bool keepAlive) {
+    _replyAssistUntil = Time.time + replyAssistWindow; // keep 延長
+    OnSample(dR, dL, keepAlive ? "PING_KEEPALIVE" : "PING"); // 既存
+}
+   public void OnWhisperExit() {
+    _replyAssistUntil = 0f; // 窓を閉じる
+    // 既存処理
+    lastPingTime = Time.time;
+    unstableCounter = confirmCount;
+    stableCounter = 0;
+    if (isReceiving) { isReceiving = false; UpdateLabel("受信: ❌ (exit)"); }
+}
 
     private void OnSample(float dR, float dL, string tag)
     {
@@ -1232,6 +1371,66 @@ public class WhisperManager : UdonSharpBehaviour
 
         return okR || okL;
     }
+
+            // 口のワールド座標（IsPalmFacingEarByThreshold と同じオフセットを関数化）
+        private Vector3 GetMouthPosition(VRCPlayerApi who)
+        {
+            Vector3 head   = who.GetBonePosition(HumanBodyBones.Head);
+            Quaternion rot = who.GetBoneRotation(HumanBodyBones.Head);
+            return head + rot * new Vector3(0f, -0.07f, 0.10f);
+        }
+
+        private float DistWristToMouth(bool isRight)
+        {
+            Vector3 mouth = GetMouthPosition(localPlayer);
+            Vector3 wrist = localPlayer.GetBonePosition(isRight ? HumanBodyBones.RightHand : HumanBodyBones.LeftHand);
+            if (mouth == Vector3.zero || wrist == Vector3.zero) return 1e9f;
+            return Vector3.Distance(mouth, wrist);
+        }
+
+        private bool IsWristInMouthBubble(bool isRight, bool loosened)
+        {
+            float rEnter = headBubbleRadiusEnter;
+            float rExit  = headBubbleRadiusExit;
+            float rUse   = loosened ? rExit : rEnter;  // ヒステリシス
+
+            float d = DistWristToMouth(isRight);
+            bool insideNow = d <= rUse;
+
+            // 粘り（手が一瞬だけ外れても揺れないように）
+            if (insideNow)
+            {
+                if (isRight) _rInUntil = Time.time + handGateStickSeconds;
+                else         _lInUntil = Time.time + handGateStickSeconds;
+                return true;
+            }
+            else
+            {
+                return isRight ? (Time.time < _rInUntil) : (Time.time < _lInUntil);
+            }
+        }
+
+        // 両手イン時に“それっぽさ”を比べるための簡易 dot
+        private float LooseDotToMouth(bool isRight)
+        {
+            Vector3 mouth = GetMouthPosition(localPlayer);
+            Vector3 wrist = localPlayer.GetBonePosition(isRight ? HumanBodyBones.RightHand : HumanBodyBones.LeftHand);
+            if (mouth == Vector3.zero || wrist == Vector3.zero) return -1f;
+
+            Vector3 toMouth = (mouth - wrist).normalized;
+            Vector3 palm    = usePalmNormalFromFingers ? ComputePalmNormal(isRight) : ComputePalmNormalFallback(isRight);
+            return palmDotSign * Vector3.Dot(palm, toMouth);
+        }
+
+        // （返信アシスト用）口-手の距離判定
+        private bool IsHandNearMouth(VRCPlayerApi who, float threshold, bool isRight)
+        {
+            Vector3 mouth = GetMouthPosition(who);
+            Vector3 wrist = localPlayer.GetBonePosition(isRight ? HumanBodyBones.RightHand : HumanBodyBones.LeftHand);
+            if (mouth == Vector3.zero || wrist == Vector3.zero) return false;
+            return Vector3.Distance(mouth, wrist) < threshold;
+        }
+
 
     // 新候補が現ターゲットより十分近いか？
     private bool _IsSignificantlyCloser(int newPid, int currentPid)
